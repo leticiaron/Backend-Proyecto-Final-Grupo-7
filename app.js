@@ -144,6 +144,27 @@ app.listen(port, () => {
   console.log(`Servidor corriendo en localhost: ${port}`);
 });
 
+//MIDDLEWARE
+const autorizacionMiddleware = (req, res, next) => {
+const token = req.headers.authorization;
+if (!token) {
+return res.status(401).json({ message: "Token de autorización no proporcionado" });
+}
+jwt.verify(token, SECRET_KEY, (err, decoded) => {
+if (err) {
+return res.status(401).json({ message: "Token de autorización inválido" });
+}
+req.user = decoded;
+next();
+});
+};
+// Endpoint protegido que requiere autorización
+app.get("/ruta-protegida", autorizacionMiddleware, (req, res) => {
+// Lógica de la ruta protegida aquí
+  res.json({ message: "Acceso autorizado a la ruta protegida" });
+});
+
+
 //CREACIÓN DEL ENDPOINT CART PARA LAS COMPRAS DEL USUARIO
 
 // Endpoint POST /cart para procesar una orden de compra

@@ -3,7 +3,7 @@ const fs = require("fs").promises; //SE USA PROMISES PARA MANEJAR DE MANERA ASIN
 const path = require("path");
 const cors = require("cors"); // INSTALADO PARA AUTORIZACION EN LOS PUERTOS Y LECTURA DEL LOCALHOST
 const jwt = require("jsonwebtoken"); // PARA GENERAR Y VALIDAR TOKENS
-
+const bodyParser = require("body-parser");// PARA PARSEAR LOS JSON DEL LOCALSTORAGE
 const app = express();
 const port = 3000;
 //LLAMADO A TRAER EL UNICO ARCHIVO JSON QUE CONTIENE TODAS LAS CATEGORIAS
@@ -81,6 +81,8 @@ async function comentsPorId(product) {
 //INICIO DE CREACION DE RUTAS PARA DEVOLUCION AL FRONTEND
 app.use(cors());
 app.use(express.json());
+app.use(bodyParser.json());
+
 app.get("/", (req, res) => {
   res.send("BIENVENIDO A MI API: INGRESA UNA RUTA");
 });
@@ -192,9 +194,8 @@ app.post("/cart", (req, res) => {
         forma_pago,
         sub_total,
         costo_envio,
-        total,
-        usuario_id)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+        total)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
         [
           order.tipo_envio,
           order.departamento,
@@ -203,11 +204,10 @@ app.post("/cart", (req, res) => {
           order.nro,
           order.apto,
           order.esquina,
-          order.payment,
+          order.forma_pago,
           order.sub_total,
           order.costo_envio,
           order.total,
-          order.user_id,
         ]
       );
       // Obtener el ID de la orden insertada para luego ser usada al guardar datos en la tabla de ordenes_producto y saber que el producto

@@ -1,4 +1,4 @@
-CREATE OR REPLACE TABLE `usuarios` (
+CREATE TABLE `usuarios` (
 	`id` INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
 	`primer_nombre` VARCHAR(255) NOT NULL,
 	`segundo_nombre` VARCHAR(255),
@@ -7,33 +7,33 @@ CREATE OR REPLACE TABLE `usuarios` (
 	`password` VARCHAR(255) NOT NULL,
 	`email` VARCHAR(255) NOT NULL,
 	`darkmode` BOOLEAN NOT NULL DEFAULT 0,
-	`imagen_perfil` TEXT(65535),
+	`imagen_perfil` VARCHAR(255),
 	`telefono` VARCHAR(255),
 	PRIMARY KEY(`id`)
 );
 
-CREATE OR REPLACE TABLE `categorias` (
+CREATE TABLE `categorias` (
 	`id` INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
 	`nombre` VARCHAR(255) NOT NULL,
 	`descripcion` VARCHAR(255),
-	`imagen_categoria` TEXT(65535),
+	`imagen_categoria` VARCHAR(255),
 	`cantidad` INTEGER UNSIGNED,
 	PRIMARY KEY(`id`)
 );
 
-CREATE OR REPLACE TABLE `productos` (
+CREATE TABLE `productos` (
 	`id` INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
 	`nombre` VARCHAR(255) NOT NULL,
 	`descripcion` VARCHAR(255) NOT NULL,
 	`precio` INTEGER UNSIGNED NOT NULL,
 	`moneda` VARCHAR(255) NOT NULL,
 	`vendidos` INTEGER UNSIGNED NOT NULL,
-	`imagenes` JSON,
+	`imagenes` VARCHAR(255),
 	`categoria_id` INTEGER,
 	PRIMARY KEY(`id`)
 );
 
-CREATE OR REPLACE TABLE `opiniones` (
+CREATE TABLE `opiniones` (
 	`id` INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
 	`nombre_usuario` VARCHAR(255) NOT NULL,
 	`puntuacion` TINYINT NOT NULL,
@@ -44,13 +44,7 @@ CREATE OR REPLACE TABLE `opiniones` (
 	PRIMARY KEY(`id`)
 );
 
-CREATE OR REPLACE TABLE `carrito` (
-	`id` INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
-	`usuario_id` INTEGER NOT NULL,
-	PRIMARY KEY(`id`)
-);
-
-CREATE OR REPLACE TABLE `ordenes` (
+CREATE TABLE `ordenes` (
 	`id` INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
 	`tipo_envio` ENUM('premium', 'express', 'standard') NOT NULL,
 	`departamento` VARCHAR(255) NOT NULL,
@@ -67,7 +61,7 @@ CREATE OR REPLACE TABLE `ordenes` (
 	PRIMARY KEY(`id`)
 );
 
-CREATE OR REPLACE TABLE `ordenes_producto` (
+CREATE TABLE `ordenes_producto` (
 	`id` INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
 	`producto_id` INTEGER NOT NULL,
 	`cantidad` INTEGER UNSIGNED NOT NULL,
@@ -77,25 +71,11 @@ CREATE OR REPLACE TABLE `ordenes_producto` (
 	PRIMARY KEY(`id`)
 );
 
-CREATE OR REPLACE TABLE `carrito_producto` (
-	`id` INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
-	`producto_id` INTEGER,
-	`cantidad` INTEGER,
-	`precio` INTEGER,
-	`sub_total` INTEGER,
-	`carrito_id` INTEGER,
-	`moneda` ENUM('UYU', 'USD'),
-	PRIMARY KEY(`id`)
-);
-
 ALTER TABLE `productos`
 ADD FOREIGN KEY(`categoria_id`) REFERENCES `categorias`(`id`)
 ON UPDATE NO ACTION ON DELETE NO ACTION;
 ALTER TABLE `opiniones`
 ADD FOREIGN KEY(`producto_id`) REFERENCES `productos`(`id`)
-ON UPDATE NO ACTION ON DELETE NO ACTION;
-ALTER TABLE `carrito`
-ADD FOREIGN KEY(`usuario_id`) REFERENCES `usuarios`(`id`)
 ON UPDATE NO ACTION ON DELETE NO ACTION;
 ALTER TABLE `ordenes`
 ADD FOREIGN KEY(`usuario_id`) REFERENCES `usuarios`(`id`)
@@ -105,10 +85,4 @@ ADD FOREIGN KEY(`producto_id`) REFERENCES `productos`(`id`)
 ON UPDATE NO ACTION ON DELETE NO ACTION;
 ALTER TABLE `ordenes_producto`
 ADD FOREIGN KEY(`orden_id`) REFERENCES `ordenes`(`id`)
-ON UPDATE NO ACTION ON DELETE NO ACTION;
-ALTER TABLE `carrito_producto`
-ADD FOREIGN KEY(`carrito_id`) REFERENCES `carrito`(`id`)
-ON UPDATE NO ACTION ON DELETE NO ACTION;
-ALTER TABLE `carrito_producto`
-ADD FOREIGN KEY(`producto_id`) REFERENCES `productos`(`id`)
 ON UPDATE NO ACTION ON DELETE NO ACTION;

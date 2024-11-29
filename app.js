@@ -8,6 +8,7 @@ const app = express();
 const port = 3000;
 //LLAMADO A TRAER EL UNICO ARCHIVO JSON QUE CONTIENE TODAS LAS CATEGORIAS
 const categories = require("./cats/cat.json");
+const { nextTick } = require("process");
 
 // Clave para firmar los tokens
 const SECRET_KEY = "CLAVESUPERSECRETA";
@@ -53,12 +54,14 @@ app.use(express.json());
 app.get("/", (req, res) => {
   res.send("BIENVENIDO A MI API: INGRESA UNA RUTA");
 });
-//DEVOLUCION DE JSON DE CATEGORIAS
-app.get("/categorias.json", (req, res) => {
+
+//DEVOLUCION DE JSON DE CATEGORIAS (ruta protegida)
+app.get("/categorias.json", authorize, (req, res) => {
   res.json(categories);
 });
-//DEVOLUCION DE JSON DE CATEGORIA DE PRODUCTOS SEGUN EL CAT ID
-app.get("/cat_prod/:catID.json", async (req, res) => {
+
+//DEVOLUCION DE JSON DE CATEGORIA DE PRODUCTOS SEGUN EL CAT ID  (ruta protegida)
+app.get("/cat_prod/:catID.json", authorize, async (req, res) => {
   const catID = req.params.catID;
   const information = await mostrarPorID(catID);
   if (information) {
@@ -67,8 +70,9 @@ app.get("/cat_prod/:catID.json", async (req, res) => {
     res.status(404).send("Producto  no encontrado");
   }
 });
-//DEVOLUCION DE JSON DE PRODUCTOS SEGUN EL ID
-app.get("/productos/:id.json", async (req, res) => {
+
+//DEVOLUCION DE JSON DE PRODUCTOS SEGUN EL ID (ruta protegida)
+app.get("/productos/:id.json", authorize, async (req, res) => {
   const id = req.params.id;
   const datosFinal = await productsPorId(id);
   if (datosFinal) {
@@ -77,8 +81,9 @@ app.get("/productos/:id.json", async (req, res) => {
     res.status(404).send("Producto  no encontrado");
   }
 });
-//DEVOLUCION DE JSON DE COMENTARIOS DE CLIENTES
-app.get("/comentario_prod/:product.json", async (req, res) => {
+
+//DEVOLUCION DE JSON DE COMENTARIOS DE CLIENTES  (ruta protegida)
+app.get("/comentario_prod/:product.json", authorize, async (req, res) => {
   const product = req.params.product;
   const datosComm = await comentsPorId(product);
   if (datosComm) {
@@ -108,27 +113,48 @@ app.post("/login", (req, res) => {
   }
 });
 
+
+//MIDDLEWARE DE AUTORIZACION
+function authorize(req, res, next) {
+
+  const token = req.headers ["access-token"]; //obtiene el token del encabezado 
+  if (!token) { //si no hya token responder con error 401 - no autorizado
+return res.status(401).json({message:"Acceso denegado. Por favor, inicia sesion."});
+}
+
+try {
+  const decoded = jwt.verify(token, SECRET_KEY); // verifica el token 
+  req.user = decoded; // guarda los datos del token verificado en el req para usar despues
+  nextTick(); // pasa al siguiente middleware  
+}
+catch(error) {
+  return res.status(403).json({message:"Token invalido"}); 
+}
+}
+
+//RUTA PARA VALIDAR TOKEN 
+app.post("/validate-token", (req, res) => {
+  const token = req.headers ["access-token"]; //obtiene el token del encabezado 
+  if (!token) { 
+return res.status(401).json({message:"Falta token"});
+} 
+
+try { 
+jwt.verify(token, SECRET_KEY); // verifica el token 
+res.status(200).json({message:"Token valido"});
+} catch (error){
+  res.status(401).json({message:"Token invalido"});
+}
+}) 
+
+
+
+
+
+
+
 //LLAMADO A LA ESCUCHAR EN EL PUERTO INDICADO
 app.listen(port, () => {
   console.log(`Servidor corriendo en localhost: ${port}`);
 });
 
-//MIDDLEWARE
-const autorizacionMiddleware = (req, res, next) => {
-const token = req.headers.authorization;
-if (!token) {
-return res.status(401).json({ message: "Token de autorización no proporcionado" });
-}
-jwt.verify(token, SECRET_KEY, (err, decoded) => {
-if (err) {
-return res.status(401).json({ message: "Token de autorización inválido" });
-}
-req.user = decoded;
-next();
-});
-};
-// Endpoint protegido que requiere autorización
-app.get("/ruta-protegida", autorizacionMiddleware, (req, res) => {
-// Lógica de la ruta protegida aquí
-  res.json({ message: "Acceso autorizado a la ruta protegida" });
-});

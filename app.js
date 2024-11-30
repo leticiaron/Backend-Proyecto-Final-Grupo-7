@@ -192,9 +192,8 @@ app.post("/cart", (req, res) => {
         forma_pago,
         sub_total,
         costo_envio,
-        total,
-        usuario_id)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+        total)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
         [
           order.tipo_envio,
           order.departamento,
@@ -203,11 +202,10 @@ app.post("/cart", (req, res) => {
           order.nro,
           order.apto,
           order.esquina,
-          order.payment,
+          order.forma_pago,
           order.sub_total,
           order.costo_envio,
-          order.total,
-          order.user_id,
+          order.total
         ]
       );
       // Obtener el ID de la orden insertada para luego ser usada al guardar datos en la tabla de ordenes_producto y saber que el producto
@@ -217,8 +215,7 @@ app.post("/cart", (req, res) => {
       // Insertar cada producto de la orden en la base de datos
       for (const product of order.products) {
         let prod = {
-          id: product.id,
-          producto_id: product.id,
+          nombre: product.name,
           cantidad: product.quantity,
           precio: product.cost,
           sub_total: product.cost * product.quantity,
@@ -226,9 +223,9 @@ app.post("/cart", (req, res) => {
         };
 
         await connection.query(
-          `INSERT INTO ordenes_producto (producto_id, cantidad, precio, sub_total, orden_id) VALUES (?,?,?,?,?)`,
+          `INSERT INTO ordenes_producto (nombre, cantidad, precio, sub_total, orden_id) VALUES (?,?,?,?,?)`,
           [
-            prod.producto_id,
+            prod.nombre,
             prod.cantidad,
             prod.precio,
             prod.sub_total,

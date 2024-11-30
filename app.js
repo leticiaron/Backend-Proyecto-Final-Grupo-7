@@ -3,6 +3,7 @@ const fs = require("fs").promises; //SE USA PROMISES PARA MANEJAR DE MANERA ASIN
 const path = require("path");
 const cors = require("cors"); // INSTALADO PARA AUTORIZACION EN LOS PUERTOS Y LECTURA DEL LOCALHOST
 const jwt = require("jsonwebtoken"); // PARA GENERAR Y VALIDAR TOKENS
+const mysql = require("mysql2"); //para la base de datos
 
 const app = express();
 const port = 3000;
@@ -15,6 +16,23 @@ const SECRET_KEY = "CLAVESUPERSECRETA";
 // Usuario y contraseña válidos para autenticación
 const VALID_USER = "proyectofinal@jap.com";
 const VALID_PASSWORD = "1234";
+
+//Conexión a la base de datos
+const db = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "Lrg47013!",
+  database: "ecommerce",
+});
+
+//Verificación de conexión a la base de datos
+db.connect((err) => {
+  if (err) {
+    console.error("Error al conectar a la base de datos", err);
+    return;
+  }
+  console.log("Conectado a la base de datos MySQL");
+});
 
 //LLAMADO A LA LECTURA DE ARCHIVOS DE CATEGORIAS DE PRODUCTOS SEGUND CATID
 async function mostrarPorID(catID) {
@@ -157,24 +175,94 @@ app.post("/validate-token", (req, res) => {
   }
 });
 
-//Endpoint para depuracion
-app.get("/debug-products", authorize, async (req, res) => {
-  try {
-    const categorias = await fs.readdir(path.join(__dirname, "cats_products"));
-    const productos = {};
+//Endpoint para guardar orden de compra en la base de datos
+app.post("/cart", async (req, res) => {
+  console.log("Llegó una compra");
+  const {
+    tipo_envio,
+    departamento,
+    localidad,
+    calle,
+    nro,
+    apto,
+    esquina,
+    forma_pago,
+    sub_total,
+    costo_envio,
+    total,
+    productos,
+  } = req.body;
+  console.log(req.body);
+  // Validar datos
+  if (
+    !tipo_envio ||
+    !departamento ||
+    !localidad ||
+    !calle ||
+    !nro ||
+    !forma_pago ||
+    !sub_total ||
+    !costo_envio ||
+    !total ||
+    !Array.isArray(productos) ||
+    productos.length === 0 ||
+    productos.some(
+      (producto) => !producto.name || !producto.quantity || !producto.price
+    )
+  ) {
+    return res.status(400).json({ message: "Datos incompletos o incorrectos" });
+  }
 
-    for (let archivo of categorias) {
-      const catID = archivo.replace(".json", "");
-      const data = await mostrarPorID(catID);
-      productos[catID] = data;
+  try {
+    // Iniciar transacción
+    await db.promise().beginTransaction();
+
+    // Insertar orden
+    const ordenQuery = `
+      INSERT INTO ordenes (tipo_envio, departamento, localidad, calle, nro, apto, esquina, forma_pago, sub_total, costo_envio, total)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    const ordenParams = [
+      tipo_envio,
+      departamento,
+      localidad,
+      calle,
+      nro,
+      apto || "",
+      esquina || "",
+      forma_pago,
+      sub_total,
+      costo_envio,
+      total,
+    ];
+    const [ordenResult] = await db.promise().query(ordenQuery, ordenParams);
+    const ordenId = ordenResult.insertId;
+
+    // Insertar productos
+    const producoQuery = `
+      INSERT INTO ordenes_producto (nombre, cantidad, precio, sub_total, orden_id)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    for (let producto of productos) {
+      const productoParams = [
+        producto.name,
+        producto.quantity,
+        producto.price,
+        producto.quantity * producto.price,
+        ordenId,
+      ];
+      await db.promise().query(producoQuery, productoParams);
     }
 
-    res.json({
-      categorias,
-      productos,
-    });
+    // Confirmar transacción
+    await db.promise().commit();
+    console.log("Compra terminada");
+    res.status(201).json({ message: "Orden de compra guardada con éxito." });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    // Revertir transacción en caso de error
+    await db.promise().rollback();
+    console.error("Error durante la transacción:", error);
+    res.status(500).json({ message: "Error guardando los datos" });
   }
 });
 

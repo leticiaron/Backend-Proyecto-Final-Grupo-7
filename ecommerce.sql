@@ -44,12 +44,6 @@ CREATE TABLE `opiniones` (
 	PRIMARY KEY(`id`)
 );
 
-CREATE TABLE `carrito` (
-	`id` INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
-	`usuario_id` INTEGER NOT NULL,
-	PRIMARY KEY(`id`)
-);
-
 CREATE TABLE `ordenes` (
 	`id` INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
 	`tipo_envio` ENUM('premium', 'express', 'standard') NOT NULL,
@@ -77,25 +71,11 @@ CREATE TABLE `ordenes_producto` (
 	PRIMARY KEY(`id`)
 );
 
-CREATE TABLE `carrito_producto` (
-	`id` INTEGER NOT NULL AUTO_INCREMENT UNIQUE,
-	`producto_id` INTEGER,
-	`cantidad` INTEGER,
-	`precio` INTEGER,
-	`sub_total` INTEGER,
-	`carrito_id` INTEGER,
-	`moneda` ENUM('UYU', 'USD'),
-	PRIMARY KEY(`id`)
-);
-
 ALTER TABLE `productos`
 ADD FOREIGN KEY(`categoria_id`) REFERENCES `categorias`(`id`)
 ON UPDATE NO ACTION ON DELETE NO ACTION;
 ALTER TABLE `opiniones`
 ADD FOREIGN KEY(`producto_id`) REFERENCES `productos`(`id`)
-ON UPDATE NO ACTION ON DELETE NO ACTION;
-ALTER TABLE `carrito`
-ADD FOREIGN KEY(`usuario_id`) REFERENCES `usuarios`(`id`)
 ON UPDATE NO ACTION ON DELETE NO ACTION;
 ALTER TABLE `ordenes`
 ADD FOREIGN KEY(`usuario_id`) REFERENCES `usuarios`(`id`)
@@ -105,10 +85,4 @@ ADD FOREIGN KEY(`producto_id`) REFERENCES `productos`(`id`)
 ON UPDATE NO ACTION ON DELETE NO ACTION;
 ALTER TABLE `ordenes_producto`
 ADD FOREIGN KEY(`orden_id`) REFERENCES `ordenes`(`id`)
-ON UPDATE NO ACTION ON DELETE NO ACTION;
-ALTER TABLE `carrito_producto`
-ADD FOREIGN KEY(`carrito_id`) REFERENCES `carrito`(`id`)
-ON UPDATE NO ACTION ON DELETE NO ACTION;
-ALTER TABLE `carrito_producto`
-ADD FOREIGN KEY(`producto_id`) REFERENCES `productos`(`id`)
 ON UPDATE NO ACTION ON DELETE NO ACTION;

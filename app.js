@@ -52,11 +52,18 @@ async function mostrarPorID(catID) {
   const filePath = path.join(__dirname, "cats_products", `${catID}.json`);
   try {
     const data = await fs.readFile(filePath, "utf-8");
-    return JSON.parse(data);
+    const categoria = JSON.parse(data);
+    if (Array.isArray(categoria.products)) {
+      return categoria.products; //devuelve el array de productos
+    } else {
+      return []; //si no hay productos devuelve un array vacío
+    }
   } catch (error) {
-    return console.log("Archivo no encontrado");
+    console.error(`Error al leer productos para categoría ${catID}:`, error);
+    return [];
   }
 }
+
 // FUNCION PARA LA LECTURA DE ARCHIVOS DE PRODUCTS SEGUN SU ID
 async function productsPorId(id) {
   const filePath = path.join(__dirname, "products", `${id}.json`);
@@ -79,25 +86,28 @@ async function comentsPorId(product) {
 }
 
 //INICIO DE CREACION DE RUTAS PARA DEVOLUCION AL FRONTEND
-app.use(cors());
+app.use(cors()); //para permitir solicitudes desde cualquier origen
 app.use(express.json());
 app.get("/", (req, res) => {
   res.send("BIENVENIDO A MI API: INGRESA UNA RUTA");
 });
+
 //DEVOLUCION DE JSON DE CATEGORIAS
 app.get("/categorias.json", (req, res) => {
   res.json(categories);
 });
+
 //DEVOLUCION DE JSON DE CATEGORIA DE PRODUCTOS SEGUN EL CAT ID
-app.get("/cat_prod/:catID.json", async (req, res) => {
+app.get("/products/:catID.json", authorize, async (req, res) => {
   const catID = req.params.catID;
-  const information = await mostrarPorID(catID);
-  if (information) {
-    res.json(information);
+  const productos = await mostrarPorID(catID);
+  if (Array.isArray(productos) && productos.length > 0) {
+    res.json(productos); //devuelve los productos si esta todo ok
   } else {
-    res.status(404).send("Producto  no encontrado");
+    res.status(404).send("Productos no encontrados");
   }
 });
+
 //DEVOLUCION DE JSON DE PRODUCTOS SEGUN EL ID
 app.get("/productos/:id.json", async (req, res) => {
   const id = req.params.id;
@@ -108,6 +118,7 @@ app.get("/productos/:id.json", async (req, res) => {
     res.status(404).send("Producto  no encontrado");
   }
 });
+
 //DEVOLUCION DE JSON DE COMENTARIOS DE CLIENTES
 app.get("/comentario_prod/:product.json", async (req, res) => {
   const product = req.params.product;
@@ -136,6 +147,65 @@ app.post("/login", (req, res) => {
   } else {
     // Responder con un error si los datos son incorrect0s
     return res.status(401).json({ message: "Usuario no autorizado" });
+  }
+});
+
+//MIDDLEWARE DE AUTORIZACION
+function authorize(req, res, next) {
+  const token = req.headers["access-token"]; //obtiene el token del encabezado
+  console.log("Token recibido: ", token);
+
+  if (!token) {
+    //si no hya token responder con error 401 - no autorizado
+    return res
+      .status(401)
+      .json({ message: "Acceso denegado. Por favor, inicia sesion." });
+  }
+
+  try {
+    const decoded = jwt.verify(token, SECRET_KEY); // verifica el token
+    console.log("Token decodificado: ", decoded);
+    req.user = decoded; // guarda los datos del token verificado en el req para usar despues
+    next(); // pasa al siguiente middleware
+  } catch (error) {
+    console.log("Error de verificación de token:", error.message);
+    return res.status(403).json({ message: "Token invalido" });
+  }
+}
+
+//RUTA PARA VALIDAR TOKEN
+app.post("/validate-token", (req, res) => {
+  const token = req.headers["access-token"]; //obtiene el token del encabezado
+  if (!token) {
+    return res.status(401).json({ message: "Falta token" });
+  }
+
+  try {
+    jwt.verify(token, SECRET_KEY); // verifica el token
+    res.status(200).json({ message: "Token valido" });
+  } catch (error) {
+    res.status(401).json({ message: "Token invalido" });
+  }
+});
+
+//Endpoint para depuracion
+app.get("/debug-products", authorize, async (req, res) => {
+  try {
+    const categorias = await fs.readdir(path.join(__dirname, "cats_products"));
+    const productos = {};
+
+    for (let archivo of categorias) {
+      const catID = archivo.replace(".json", "");
+      const data = await mostrarPorID(catID);
+      productos[catID] = data;
+    }
+
+    res.json({
+      categorias,
+      productos,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

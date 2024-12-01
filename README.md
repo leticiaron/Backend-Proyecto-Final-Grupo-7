@@ -14,6 +14,7 @@ Paso a paso con todo lo necesario para poder ejecutar el proyecto del backend
 ```
 
 I. Para inicializar un proyecto Node.js (si aún no lo has hecho)
+
 II. Esto instalará los siguientes paquetes:
 
 - express: Framework para crear el servidor
@@ -30,7 +31,7 @@ II. Esto instalará los siguientes paquetes:
 node app.js
 ```
 
-##Configuración Base de Datos (MySQL)
+## Configuración Base de Datos (MySQL)
 
 **a. Creación base de datos:**
 

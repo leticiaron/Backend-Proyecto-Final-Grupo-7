@@ -22,7 +22,7 @@ const VALID_PASSWORD = "1234";
 const db = mysql.createConnection({
   host: "localhost",
   user: "root",
-  password: "Lrg47013!",
+  password: "",
   database: "ecommerce",
 });
 

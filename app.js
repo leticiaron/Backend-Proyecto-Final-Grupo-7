@@ -1,13 +1,14 @@
-const express = require("express");
+const express = require("express"); //para crear el servidor
 const fs = require("fs").promises; //SE USA PROMISES PARA MANEJAR DE MANERA ASINCRONICA LA LECTURA DE LOS DATOS
-const path = require("path");
+const path = require("path"); //para manejar rutas de forma segura
 const cors = require("cors"); // INSTALADO PARA AUTORIZACION EN LOS PUERTOS Y LECTURA DEL LOCALHOST
 const jwt = require("jsonwebtoken"); // PARA GENERAR Y VALIDAR TOKENS
 const mysql = require("mysql2"); //para la base de datos
 
-const app = express();
+const app = express(); //para configurar el servidor
 const port = 3000;
-//LLAMADO A TRAER EL UNICO ARCHIVO JSON QUE CONTIENE TODAS LAS CATEGORIAS
+
+//Carga de json con categorías (usando endpoint)
 const categories = require("./cats/cat.json");
 
 // Clave para firmar los tokens
@@ -74,7 +75,7 @@ async function comentsPorId(product) {
 
 //INICIO DE CREACION DE RUTAS PARA DEVOLUCION AL FRONTEND
 app.use(cors()); //para permitir solicitudes desde cualquier origen
-app.use(express.json());
+app.use(express.json()); //para parsear solicitudes en formato json
 app.get("/", (req, res) => {
   res.send("BIENVENIDO A MI API: INGRESA UNA RUTA");
 });
@@ -178,6 +179,7 @@ app.post("/validate-token", (req, res) => {
 //Endpoint para guardar orden de compra en la base de datos
 app.post("/cart", async (req, res) => {
   console.log("Llegó una compra");
+  //Extrae los campos enviados
   const {
     tipo_envio,
     departamento,
@@ -192,27 +194,29 @@ app.post("/cart", async (req, res) => {
     total,
     productos,
   } = req.body;
-  console.log(req.body);
-  // Validar datos
+  console.log(req.body); //para revisar los datos recibidos
+
+  // Validar datos (NO BORRAR: Esto fue clave para que los datos se envíen correctamente)
   if (
     !tipo_envio ||
     !departamento ||
-    !localidad || // Revisa si este campo es estrictamente necesario
+    !localidad ||
     !calle ||
     !nro ||
     !forma_pago ||
     !sub_total ||
     !costo_envio ||
     !total ||
-    !Array.isArray(productos) ||
-    productos.length === 0 ||
+    !Array.isArray(productos) || //Verifica que los productos sean un arreglo
+    productos.length === 0 || //Verifica que haya al menos un producto en la compra
     productos.some(
       (producto) =>
-        !producto.name ||
-        producto.quantity <= 0 || // Verifica que quantity sea mayor a 0
-        producto.price <= 0 // Verifica que price sea mayor a 0
+        !producto.name || //Verifica que cada producto tenga nombre
+        producto.quantity <= 0 || //Verifica que la cantidad sea mayor a 0
+        producto.cost <= 0 // Verifica que el precio sea mayor a 0
     )
   ) {
+    //Para mostrar los datos incorrectos si los hubiera
     console.error("Error de validación en los campos:", {
       tipo_envio,
       departamento,
@@ -225,35 +229,43 @@ app.post("/cart", async (req, res) => {
       total,
       productos,
     });
-    return res
-      .status(400)
-      .json({ message: "Datos incompletos o incorrectos. Revisa los campos." });
+    return res.status(400).json({
+      message:
+        "Faltan o son incorrectos algunos datos. Revisa los campos enviados.",
+      errores: {
+        tipo_envio: !tipo_envio,
+        departamento: !departamento,
+        productos: productos.length === 0,
+      },
+    });
   }
 
   try {
-    // Iniciar transacción
+    // Iniciar transacción en base de datos
     await db.promise().beginTransaction();
 
-    // Insertar orden
+    // Insertar orden en la tabla
     const ordenQuery = `
-      INSERT INTO ordenes (tipo_envio, departamento, localidad, calle, nro, forma_pago, sub_total, costo_envio, total)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    INSERT INTO ordenes (tipo_envio, departamento, localidad, calle, nro, apto, esquina, forma_pago, sub_total, costo_envio, total)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `;
+    //Datos para insertar en la orden
     const ordenParams = [
       tipo_envio,
       departamento,
       localidad,
       calle,
       nro,
-      apto || "",
-      esquina || "",
+      apto || null, //Si no hay datos se guarda como "NULL"
+      esquina || null,
       forma_pago,
       sub_total,
       costo_envio,
       total,
     ];
+    //Ejecuta la consulta y obtiene ID de la orden insertada
     const [ordenResult] = await db.promise().query(ordenQuery, ordenParams);
-    const ordenId = ordenResult.insertId;
+    const ordenId = ordenResult.insertId; //guarda el ID para relacionarlo con los productos
 
     // Insertar productos
     const producoQuery = `
@@ -268,6 +280,7 @@ app.post("/cart", async (req, res) => {
         producto.quantity * producto.price,
         ordenId,
       ];
+      //Inserta caad producto en la tabla
       await db.promise().query(producoQuery, productoParams);
     }
 
@@ -276,18 +289,16 @@ app.post("/cart", async (req, res) => {
     console.log("Compra terminada");
     res.status(201).json({ message: "Orden de compra guardada con éxito." });
   } catch (error) {
-    await db.promise().rollback();
+    await db.promise().rollback(); //si hay algún error se revierten los cambios en la base de datos
     console.error(
       "Error durante la transacción:",
       error.sqlMessage || error.message,
       error
     );
-    res
-      .status(500)
-      .json({
-        message: "Error guardando los datos",
-        error: error.sqlMessage || error.message,
-      });
+    res.status(500).json({
+      message: "Error guardando los datos",
+      error: error.sqlMessage || error.message,
+    });
   }
 });
 

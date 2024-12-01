@@ -197,7 +197,7 @@ app.post("/cart", async (req, res) => {
   if (
     !tipo_envio ||
     !departamento ||
-    !localidad ||
+    !localidad || // Revisa si este campo es estrictamente necesario
     !calle ||
     !nro ||
     !forma_pago ||
@@ -207,10 +207,27 @@ app.post("/cart", async (req, res) => {
     !Array.isArray(productos) ||
     productos.length === 0 ||
     productos.some(
-      (producto) => !producto.name || !producto.quantity || !producto.price
+      (producto) =>
+        !producto.name ||
+        producto.quantity <= 0 || // Verifica que quantity sea mayor a 0
+        producto.price <= 0 // Verifica que price sea mayor a 0
     )
   ) {
-    return res.status(400).json({ message: "Datos incompletos o incorrectos" });
+    console.error("Error de validación en los campos:", {
+      tipo_envio,
+      departamento,
+      localidad,
+      calle,
+      nro,
+      forma_pago,
+      sub_total,
+      costo_envio,
+      total,
+      productos,
+    });
+    return res
+      .status(400)
+      .json({ message: "Datos incompletos o incorrectos. Revisa los campos." });
   }
 
   try {
@@ -219,7 +236,7 @@ app.post("/cart", async (req, res) => {
 
     // Insertar orden
     const ordenQuery = `
-      INSERT INTO ordenes (tipo_envio, departamento, localidad, calle, nro, apto, esquina, forma_pago, sub_total, costo_envio, total)
+      INSERT INTO ordenes (tipo_envio, departamento, localidad, calle, nro, forma_pago, sub_total, costo_envio, total)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     const ordenParams = [
@@ -259,10 +276,18 @@ app.post("/cart", async (req, res) => {
     console.log("Compra terminada");
     res.status(201).json({ message: "Orden de compra guardada con éxito." });
   } catch (error) {
-    // Revertir transacción en caso de error
     await db.promise().rollback();
-    console.error("Error durante la transacción:", error);
-    res.status(500).json({ message: "Error guardando los datos" });
+    console.error(
+      "Error durante la transacción:",
+      error.sqlMessage || error.message,
+      error
+    );
+    res
+      .status(500)
+      .json({
+        message: "Error guardando los datos",
+        error: error.sqlMessage || error.message,
+      });
   }
 });
 
